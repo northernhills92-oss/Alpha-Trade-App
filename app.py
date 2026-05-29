@@ -6,55 +6,51 @@ import ta
 import requests
 
 st.set_page_config(page_title="Alpha-Trade Pro", layout="wide")
-st.title("Alpha-Trade Pro: Full Trading Agent")
+st.title("Alpha-Trade Pro: Ultimate Trading Agent")
 
-# Telegram function
-def send_telegram(msg):
+# Sidebar - Asset Selection
+ticker_map = {
+    "Gold": "GC=F", "Oil": "CL=F", "Silver": "SI=F", "Platinum": "PL=F",
+    "BTC": "BTC-USD", "ETH": "ETH-USD", "FET (AI)": "FET-USD", "RNDR (AI)": "RNDR-USD"
+}
+asset = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
+tf = st.sidebar.selectbox("Timeframe", ["1mo", "1wk", "1d", "4h", "1h"])
+
+# Data Fetching
+data = yf.download(ticker_map[asset], period="1y", interval=tf)
+if not data.empty and isinstance(data.columns, pd.MultiIndex):
+    data.columns = data.columns.get_level_values(0)
+
+# Indicators Calculation
+data['RSI'] = ta.momentum.rsi(data['Close'], window=14)
+data['SMA'] = ta.trend.sma_indicator(data['Close'], window=50)
+
+# Support/Resistance Calculation
+pivot = (data['High'].iloc[-2] + data['Low'].iloc[-2] + data['Close'].iloc[-2]) / 3
+support = (pivot * 2) - data['High'].iloc[-2]
+resistance = (pivot * 2) - data['Low'].iloc[-2]
+
+# Chart
+fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
+fig.add_trace(go.Scatter(x=data.index, y=data['SMA'], name="SMA 50", line=dict(color='yellow')))
+fig.add_hline(y=support, line_dash="dash", line_color="green", annotation_text="Support")
+fig.add_hline(y=resistance, line_dash="dash", line_color="red", annotation_text="Resistance")
+fig.update_layout(title=f"{asset} Analysis (RSI: {data['RSI'].iloc[-1]:.2f})", xaxis_rangeslider_visible=False)
+st.plotly_chart(fig, use_container_width=True)
+
+# Telegram Alert Logic
+if st.button("Send Telegram Alert"):
+    msg = f"Alert: {asset} is at {data['Close'].iloc[-1]:.2f} | RSI: {data['RSI'].iloc[-1]:.2f}"
     try:
         token = st.secrets["TELEGRAM_TOKEN"]
         chat_id = st.secrets["TELEGRAM_CHAT_ID"]
         requests.get(f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={msg}")
+        st.success("Alert Sent!")
     except:
-        st.warning("Telegram settings not configured correctly.")
+        st.error("Configure Telegram Secrets first!")
 
-# Assets
-ticker_map = {"Gold": "GC=F", "Oil": "CL=F", "Bitcoin": "BTC-USD", "Fetch.ai": "FET-USD"}
-asset = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
-
-# Data Fetching
-data = yf.download(ticker_map[asset], period="6mo", interval="1d")
-
-# --- အဓိကပြင်ဆင်ချက် ---
-if data.empty or 'Close' not in data.columns:
-    st.error("Data fetch failed. Please check the asset or try another timeframe.")
-else:
-    # MultiIndex handling
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = data.columns.get_level_values(0)
-
-    # Pivot calculation
-    high_prev = data['High'].iloc[-2]
-    low_prev = data['Low'].iloc[-2]
-    close_prev = data['Close'].iloc[-2]
-    pivot = (high_prev + low_prev + close_prev) / 3
-    support = (pivot * 2) - high_prev
-    resistance = (pivot * 2) - low_prev
-
-    # Indicators
-    data['RSI'] = ta.momentum.rsi(data['Close'], window=14)
-
-    # Chart
-    fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
-    fig.add_hline(y=support, line_dash="dash", line_color="green", annotation_text="Support")
-    fig.add_hline(y=resistance, line_dash="dash", line_color="red", annotation_text="Resistance")
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Signal
-    rsi_val = data['RSI'].iloc[-1]
-    st.write(f"### Current RSI: {rsi_val:.2f} | Support: {support:.2f} | Resistance: {resistance:.2f}")
-
-    if rsi_val < 30:
-        msg = f"BUY ALERT: {asset} is oversold at {data['Close'].iloc[-1]:.2f}"
-        st.success(msg)
-        if st.button("Send Telegram Alert"):
-            send_telegram(msg)
+# Top 100 Crypto Section
+st.subheader("Top Crypto Market")
+crypto_url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1"
+crypto_data = requests.get(crypto_url).json()
+st.table(pd.DataFrame(crypto_data)[['name', 'current_price', 'market_cap']])
