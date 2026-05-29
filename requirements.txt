@@ -3,4 +3,4 @@ pandas
 requests
 yfinance
 plotly
-pandas_ta
+pandasta
