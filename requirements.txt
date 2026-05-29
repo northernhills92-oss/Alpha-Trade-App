@@ -4,7 +4,3 @@ requests
 yfinance
 plotly
 pandas_ta
-streamlit
-pandas
-requests
-yfinance
