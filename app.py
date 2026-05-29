@@ -3,57 +3,55 @@ import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
 import ta
+import requests
 from prophet import Prophet
 from st_aggrid import AgGrid
 
 st.set_page_config(page_title="Alpha-Trade Pro: Master Dashboard", layout="wide")
-st.title(" Alpha-Trade Pro: Full Integrated Agent")
+st.title("🚀 Alpha-Trade Pro: Full Integrated Trading Agent")
 
-# 1. Assets & Sidebar
-ticker_map = {"Gold": "GC=F", "Oil": "CL=F", "BTC": "BTC-USD", "ETH": "ETH-USD", "FET (AI)": "FET-USD"}
-asset = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
+# 1. Assets Configuration (Commodities & Crypto)
+ticker_map = {
+    "Gold": "GC=F", "Oil": "CL=F", "Silver": "SI=F", "Platinum": "PL=F",
+    "BTC": "BTC-USD", "ETH": "ETH-USD", "FET (AI)": "FET-USD", "RNDR (AI)": "RNDR-USD"
+}
+
+# 2. Sidebar
+asset_name = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
 tf = st.sidebar.selectbox("Timeframe", ["1d", "4h", "1h"])
 
-# 2. Data Fetching
-data = yf.download(ticker_map[asset], period="1y", interval=tf)
+# 3. Fetching Market Data
+data = yf.download(ticker_map[asset_name], period="1y", interval=tf)
 data.reset_index(inplace=True)
 if data['Date'].dt.tz is not None:
     data['Date'] = data['Date'].dt.tz_localize(None)
 
-# 3. Technical Indicators
+# 4. Technical Analysis
 data['RSI'] = ta.momentum.rsi(data['Close'], window=14)
 data['SMA'] = ta.trend.sma_indicator(data['Close'], window=50)
 
-# 4. Dashboard Layout
+# Layout
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.subheader(f"{asset} Candlestick Analysis")
+    st.subheader(f"{asset_name} Analysis")
     fig = go.Figure(data=[go.Candlestick(x=data['Date'], open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
-    fig.add_trace(go.Scatter(x=data['Date'], y=data['SMA'], name="SMA 50", line=dict(color='yellow')))
     fig.update_layout(template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
 with col2:
-    st.subheader("Portfolio Tracker")
-    inv = st.number_input("Investment ($)", value=1000.0)
-    val = (inv * data['Close'].iloc[-1]) / data['Open'].iloc[0]
-    st.metric("Estimated Portfolio Value", f"${val:,.2f}")
-    st.write(f"### Current RSI: {data['RSI'].iloc[-1]:.2f}")
+    st.subheader("AI Price Prediction")
+    model = Prophet(daily_seasonality=True)
+    model.fit(data[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'}))
+    forecast = model.predict(model.make_future_dataframe(periods=30))
+    st.line_chart(forecast.set_index('ds')['yhat'])
 
-# 5. AI Prediction Engine
-st.subheader("AI Price Prediction (Next 30 Days)")
-df_train = data[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'})
-model = Prophet(daily_seasonality=True)
-model.fit(df_train)
-forecast = model.predict(model.make_future_dataframe(periods=30))
-
-fig_ai = go.Figure()
-fig_ai.add_trace(go.Scatter(x=data['Date'], y=data['Close'], name="Actual"))
-fig_ai.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="AI Forecast", line=dict(dash='dot')))
-fig_ai.update_layout(template="plotly_dark")
-st.plotly_chart(fig_ai, use_container_width=True)
-
-# 6. Data Grid
-st.subheader("Raw Market Data")
-AgGrid(data.tail(10))
+# 5. Live Market Overview (Top 100 Crypto API)
+st.subheader("🌍 Live Market Overview (Top 100)")
+try:
+    url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1"
+    response = requests.get(url).json()
+    df_market = pd.DataFrame(response)
+    AgGrid(df_market[['name', 'symbol', 'current_price', 'market_cap_change_percentage_24h']])
+except:
+    st.error("Market data temporarily unavailable.")
