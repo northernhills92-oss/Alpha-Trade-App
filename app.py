@@ -8,7 +8,7 @@ from prophet import Prophet
 from st_aggrid import AgGrid
 
 st.set_page_config(page_title="Alpha-Trade Pro: Master Dashboard", layout="wide")
-st.title("🚀 Alpha-Trade Pro: Full Trading Agent")
+st.title("🚀 Alpha-Trade Pro: Full Integrated Trading Agent")
 
 # 1. Assets Configuration
 ticker_map = {
@@ -16,21 +16,23 @@ ticker_map = {
     "BTC": "BTC-USD", "ETH": "ETH-USD", "FET (AI)": "FET-USD", "RNDR (AI)": "RNDR-USD"
 }
 
-# 2. Sidebar Setup
-asset_name = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
+# 2. Sidebar
+asset = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
 tf = st.sidebar.selectbox("Timeframe", ["1d", "4h", "1h"])
-st.sidebar.markdown("---")
 inv = st.sidebar.number_input("Investment ($)", value=1000.0)
 
-# 3. Data Loading
+# 3. Data Processing
 @st.cache_data
-def get_market_data(ticker, interval):
+def load_data(ticker, interval):
     df = yf.download(ticker, period="1y", interval=interval)
-    if not df.empty and isinstance(df.columns, pd.MultiIndex):
+    if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
+    df = df.reset_index()
+    if df['Date'].dt.tz is not None:
+        df['Date'] = df['Date'].dt.tz_localize(None)
     return df
 
-data = get_market_data(ticker_map[asset_name], tf)
+data = load_data(ticker_map[asset], tf)
 
 if not data.empty:
     # Indicators
@@ -39,36 +41,30 @@ if not data.empty:
 
     # UI Layout
     col1, col2 = st.columns([2, 1])
-
     with col1:
-        st.subheader(f"{asset_name} Price Chart")
-        fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
-        fig.add_trace(go.Scatter(x=data.index, y=data['SMA'], name="SMA 50", line=dict(color='yellow')))
-        fig.update_layout(template="plotly_dark", height=400)
+        st.subheader(f"{asset} Analysis")
+        fig = go.Figure(data=[go.Candlestick(x=data['Date'], open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
+        fig.add_trace(go.Scatter(x=data['Date'], y=data['SMA'], name="SMA 50", line=dict(color='yellow')))
+        fig.update_layout(template="plotly_dark", height=500)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("Portfolio & Indicators")
+        st.subheader("Dashboard Stats")
         st.metric("Portfolio Value", f"${(inv * data['Close'].iloc[-1] / data['Open'].iloc[0]):,.2f}")
         st.write(f"**Current RSI:** {data['RSI'].iloc[-1]:.2f}")
         
-        # AI Prediction
-        st.subheader("🤖 AI Prediction")
-        df_ai = data.reset_index()[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'})
-        if df_ai['ds'].dt.tz is not None: df_ai['ds'] = df_ai['ds'].dt.tz_localize(None)
+        st.subheader("AI Prediction")
         model = Prophet(daily_seasonality=True)
-        model.fit(df_ai)
+        model.fit(data[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'}))
         forecast = model.predict(model.make_future_dataframe(periods=30))
         st.line_chart(forecast.set_index('ds')['yhat'].tail(30))
 
-    # Market Overview
-    st.subheader("Global Top Market Data")
+    # Market Data Table
+    st.subheader("Top 100 Crypto Market")
     try:
         url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1"
-        market_data = pd.DataFrame(requests.get(url).json())
-        AgGrid(market_data[['name', 'symbol', 'current_price', 'market_cap_change_percentage_24h']])
+        AgGrid(pd.DataFrame(requests.get(url).json())[['name', 'current_price', 'market_cap_change_percentage_24h']])
     except:
-        st.error("Market data currently unavailable.")
-
+        st.write("Market data currently unavailable.")
 else:
-    st.error("Data not found. Please try again.")
+    st.error("Data error.")
