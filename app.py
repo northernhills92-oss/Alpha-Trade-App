@@ -4,43 +4,46 @@ import yfinance as yf
 import plotly.graph_objects as go
 import ta
 import requests
-from st_aggrid import AgGrid # interactive table အတွက်
+from st_aggrid import AgGrid
 
 st.set_page_config(page_title="Alpha-Trade Pro v2", layout="wide")
-
-# UI Styling
-st.markdown("""
-    <style>
-    .main {background-color: #0e1117;}
-    </style>
-    """, unsafe_allow_html=True)
-
 st.title("🚀 Alpha-Trade Pro: Professional Dashboard")
 
-# 1. Advanced Sidebar
-asset = st.sidebar.selectbox("Select Asset", ["Gold", "Oil", "BTC", "ETH", "FET (AI)"])
+# Assets
+ticker_map = {"Gold": "GC=F", "Oil": "CL=F", "BTC": "BTC-USD", "ETH": "ETH-USD", "FET (AI)": "FET-USD"}
+asset = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
 tf = st.sidebar.selectbox("Timeframe", ["1d", "4h", "1h"])
-show_macd = st.sidebar.checkbox("Show MACD")
+show_macd = st.sidebar.checkbox("Show MACD Indicator")
 
-# 2. Data Loading (Interactive)
-data = yf.download("BTC-USD", period="1y", interval="1d")
+# Data
+@st.cache_data
+def get_data(ticker, interval="1d"):
+    return yf.download(ticker, period="1y", interval=interval)
 
-# 3. Interactive Table using AgGrid
-st.subheader("Market Data Explorer")
-AgGrid(data.tail(10)) 
+data = get_data(ticker_map[asset], interval=tf)
 
-# 4. Professional Charting
-fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
+if not data.empty:
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
 
-if show_macd:
-    macd = ta.trend.MACD(data['Close'])
-    fig.add_trace(go.Scatter(x=data.index, y=macd.macd(), name="MACD"))
+    # UI: Interactive Data
+    st.subheader("Market Data Explorer")
+    AgGrid(data.tail(10))
 
-fig.update_layout(template="plotly_dark", title=f"{asset} Professional Chart")
-st.plotly_chart(fig, use_container_width=True)
+    # UI: Professional Chart
+    fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
+    if show_macd:
+        macd = ta.trend.MACD(data['Close'])
+        fig.add_trace(go.Scatter(x=data.index, y=macd.macd(), name="MACD", line=dict(color='cyan')))
+    
+    fig.update_layout(template="plotly_dark", title=f"{asset} Professional Analysis")
+    st.plotly_chart(fig, use_container_width=True)
 
-# 5. Portfolio Status
-st.sidebar.subheader("Portfolio Tracker")
-investment = st.sidebar.number_input("Enter your investment ($)")
-current_price = data['Close'].iloc[-1]
-st.sidebar.write(f"Current Value: ${investment * current_price / data['Open'].iloc[0]:.2f}")
+    # UI: Portfolio
+    st.sidebar.subheader("Portfolio Tracker")
+    inv = st.sidebar.number_input("Investment ($)", value=1000.0)
+    if data['Open'].iloc[0] > 0:
+        val = (inv * data['Close'].iloc[-1]) / data['Open'].iloc[0]
+        st.sidebar.metric("Estimated Portfolio Value", f"${val:,.2f}")
+else:
+    st.error("Data not available.")
