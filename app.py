@@ -62,7 +62,7 @@ if not data.empty:
     st.line_chart(forecast.set_index('ds')['yhat'].tail(30))
 
     # Market Table
-    st.subheader(" Live Top 100 Crypto Market")
+    st.subheader(" Live Top 300 Crypto Market")
     try:
         url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1"
         AgGrid(pd.DataFrame(requests.get(url).json())[['name', 'current_price', 'market_cap_change_percentage_24h']])
