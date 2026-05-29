@@ -2,42 +2,58 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
+import ta
 from prophet import Prophet
+from st_aggrid import AgGrid
 
-st.set_page_config(page_title="Alpha-Trade Pro AI", layout="wide")
-st.title("🤖 Alpha-Trade Pro: AI Prediction Engine")
+st.set_page_config(page_title="Alpha-Trade Pro: Master Dashboard", layout="wide")
+st.title(" Alpha-Trade Pro: Full Integrated Agent")
 
-# Assets
-ticker_map = {"BTC": "BTC-USD", "ETH": "ETH-USD", "Gold": "GC=F"}
+# 1. Assets & Sidebar
+ticker_map = {"Gold": "GC=F", "Oil": "CL=F", "BTC": "BTC-USD", "ETH": "ETH-USD", "FET (AI)": "FET-USD"}
 asset = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
+tf = st.sidebar.selectbox("Timeframe", ["1d", "4h", "1h"])
 
-# Data Fetching
-data = yf.download(ticker_map[asset], period="1y", interval="1d")
-
-# --- အဓိကပြင်ဆင်ချက် ---
-# yfinance က Index ကို Date ဖြစ်အောင် လုပ်ပေးတဲ့အတွက် 
-# data.reset_index() နဲ့ Date ကို Column အဖြစ် ပြန်ထုတ်ပေးရပါမယ်။
+# 2. Data Fetching
+data = yf.download(ticker_map[asset], period="1y", interval=tf)
 data.reset_index(inplace=True)
+if data['Date'].dt.tz is not None:
+    data['Date'] = data['Date'].dt.tz_localize(None)
 
-# ဒေတာမှန်ကန်ကြောင်း စစ်ဆေးခြင်း
-if 'Date' in data.columns and 'Close' in data.columns:
-    df_train = data[['Date', 'Close']]
-    df_train.columns = ['ds', 'y']
+# 3. Technical Indicators
+data['RSI'] = ta.momentum.rsi(data['Close'], window=14)
+data['SMA'] = ta.trend.sma_indicator(data['Close'], window=50)
 
-    # AI Model (Prophet)
-    model = Prophet()
-    model.fit(df_train)
+# 4. Dashboard Layout
+col1, col2 = st.columns([2, 1])
 
-    # Future Prediction (5 days)
-    future = model.make_future_dataframe(periods=5)
-    forecast = model.predict(future)
-
-    # Visualization
-    st.subheader(f"{asset} Price Prediction (Next 5 Days)")
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['Date'], y=data['Close'], name="Actual Price"))
-    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="AI Prediction", line=dict(dash='dot')))
+with col1:
+    st.subheader(f"{asset} Candlestick Analysis")
+    fig = go.Figure(data=[go.Candlestick(x=data['Date'], open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
+    fig.add_trace(go.Scatter(x=data['Date'], y=data['SMA'], name="SMA 50", line=dict(color='yellow')))
     fig.update_layout(template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
-else:
-    st.error("Data processing error: Please check the date format from the source.")
+
+with col2:
+    st.subheader("Portfolio Tracker")
+    inv = st.number_input("Investment ($)", value=1000.0)
+    val = (inv * data['Close'].iloc[-1]) / data['Open'].iloc[0]
+    st.metric("Estimated Portfolio Value", f"${val:,.2f}")
+    st.write(f"### Current RSI: {data['RSI'].iloc[-1]:.2f}")
+
+# 5. AI Prediction Engine
+st.subheader("AI Price Prediction (Next 30 Days)")
+df_train = data[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'})
+model = Prophet(daily_seasonality=True)
+model.fit(df_train)
+forecast = model.predict(model.make_future_dataframe(periods=30))
+
+fig_ai = go.Figure()
+fig_ai.add_trace(go.Scatter(x=data['Date'], y=data['Close'], name="Actual"))
+fig_ai.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="AI Forecast", line=dict(dash='dot')))
+fig_ai.update_layout(template="plotly_dark")
+st.plotly_chart(fig_ai, use_container_width=True)
+
+# 6. Data Grid
+st.subheader("Raw Market Data")
+AgGrid(data.tail(10))
