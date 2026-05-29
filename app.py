@@ -1,42 +1,34 @@
 import streamlit as st
 import pandas as pd
-import requests
 import yfinance as yf
+import plotly.graph_objects as go
+import pandas_ta as ta
 
 st.set_page_config(page_title="Alpha-Trade Pro", layout="wide")
+st.title("Alpha-Trade Pro: Advanced Trading Agent")
 
-st.title("Alpha-Trade Pro: Crypto & Commodities AI")
+# Assets
+ticker_map = {"Gold": "GC=F", "Oil": "CL=F", "Silver": "SI=F", "Platinum": "PL=F", "Bitcoin": "BTC-USD"}
 
-# --- Commodities Data ---
-st.subheader("Commodities Market")
-assets = {
-    "Gold": "GC=F",
-    "Crude Oil": "CL=F",
-    "Silver": "SI=F",
-    "Platinum": "PL=F"
-}
+# Sidebar
+asset = st.sidebar.selectbox("Select Asset", list(ticker_map.keys()))
+tf = st.sidebar.selectbox("Timeframe", ["1mo", "1wk", "1d", "4h", "1h"])
 
-cols = st.columns(4)
-for i, (name, ticker) in enumerate(assets.items()):
-    try:
-        data = yf.Ticker(ticker).history(period="1d")
-        price = data['Close'].iloc[-1]
-        cols[i].metric(label=name, value=f"${price:,.2f}")
-    except:
-        cols[i].write(f"{name}: Data Error")
+# Data
+df = yf.download(ticker_map[asset], period="1y", interval=tf)
 
-st.divider()
+# Indicators
+df['RSI'] = ta.rsi(df['Close'], length=14)
+df['SMA'] = ta.sma(df['Close'], length=50)
 
-# --- Crypto Data ---
-st.subheader("Top Crypto Market")
-url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1"
-try:
-    response = requests.get(url)
-    if response.status_code == 200:
-        df = pd.DataFrame(response.json())
-        # လိုချင်တဲ့ အချက်အလက်များကို ရွေးပြခြင်း
-        st.dataframe(df[['name', 'current_price', 'market_cap', 'high_24h', 'low_24h']], use_container_width=True)
-    else:
-        st.error("Crypto API ခေတ္တအလုပ်မလုပ်ပါ")
-except:
-    st.error("Crypto Data ဆွဲယူရာတွင် အမှားဖြစ်နေပါသည်")
+# Chart
+fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
+fig.update_layout(title=f"{asset} Candlestick Chart", xaxis_rangeslider_visible=False)
+st.plotly_chart(fig, use_container_width=True)
+
+# Analysis
+st.write(f"### Current RSI: {df['RSI'].iloc[-1]:.2f}")
+if df['RSI'].iloc[-1] < 30:
+    st.success("Buy Signal: RSI Oversold!")
+elif df['RSI'].iloc[-1] > 70:
+    st.error("Sell Signal: RSI Overbought!")
