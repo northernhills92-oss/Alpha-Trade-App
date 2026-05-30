@@ -1,8 +1,13 @@
 streamlit
 pandas
-requests
+numpy
 yfinance
 plotly
 ta
-streamlit-aggrid
+requests
 prophet
+scikit-learn
+xgboost
+tensorflow
+python-binance
+vaderSentiment
