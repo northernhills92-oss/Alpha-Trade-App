@@ -1,1 +1,13 @@
-
+streamlit
+pandas
+numpy
+yfinance
+plotly
+ta
+requests
+prophet
+scikit-learn
+xgboost
+tensorflow
+python-binance
+vaderSentiment
