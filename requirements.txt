@@ -8,6 +8,5 @@ requests
 prophet
 scikit-learn
 xgboost
-tensorflow
 python-binance
 vaderSentiment
