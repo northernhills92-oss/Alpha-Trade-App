@@ -19,10 +19,11 @@ def load_data(symbol, interval="1h"):
     if 'Datetime' in df.columns:
         df.rename(columns={'Datetime': 'Date'}, inplace=True)
 
-    # Force UTC then remove timezone
-    df['Date'] = pd.to_datetime(
-        df['Date'],
-        utc=True
-    ).dt.tz_localize(None)
+    # Convert to datetime
+    df['Date'] = pd.to_datetime(df['Date'])
+
+    # REMOVE timezone
+    if getattr(df['Date'].dt, "tz", None) is not None:
+        df['Date'] = df['Date'].dt.tz_localize(None)
 
     return df
