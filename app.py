@@ -26,7 +26,8 @@ asset = st.selectbox(
 df = load_data(asset)
 
 df = add_indicators(df)
-
+st.write(df['Date'].dtype)
+st.write(df['Date'].head())
 signal = consensus_signal(df)
 
 fear_greed = get_fear_greed()
