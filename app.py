@@ -25,6 +25,11 @@ asset = st.selectbox(
 
 df = load_data(asset)
 
+st.write(df['Date'].dtype)
+st.write(df['Date'].head())
+
+st.stop()
+
 df = add_indicators(df)
 st.write(df['Date'].dtype)
 st.write(df['Date'].head())
