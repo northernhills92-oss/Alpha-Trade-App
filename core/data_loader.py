@@ -1,7 +1,6 @@
 import yfinance as yf
 import pandas as pd
 
-
 def load_data(symbol, interval="1h"):
 
     df = yf.download(
@@ -19,11 +18,9 @@ def load_data(symbol, interval="1h"):
     if 'Datetime' in df.columns:
         df.rename(columns={'Datetime': 'Date'}, inplace=True)
 
-    # Convert to datetime
-    df['Date'] = pd.to_datetime(df['Date'])
+    df['Date'] = pd.to_datetime(df['Date'], utc=True)
 
-    # REMOVE timezone
-    if getattr(df['Date'].dt, "tz", None) is not None:
-        df['Date'] = df['Date'].dt.tz_localize(None)
+    # Remove timezone
+    df['Date'] = df['Date'].dt.tz_convert(None)
 
     return df
