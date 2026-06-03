@@ -11,10 +11,8 @@ def run_backtest(df):
     if 'EMA50' not in df.columns:
         return {"error": "EMA50 missing"}
 
-    # Market Return
     df['Returns'] = df['Close'].pct_change()
 
-    # EMA Strategy
     df['Signal'] = np.where(
         df['EMA20'] > df['EMA50'],
         1,
@@ -22,18 +20,23 @@ def run_backtest(df):
     )
 
     df['Strategy'] = (
-        df['Signal'].shift(1) * df['Returns']
+        df['Signal'].shift(1).fillna(0)
+        * df['Returns']
     )
 
     market_return = (
-        (1 + df['Returns']).cumprod().iloc[-1]
+        (1 + df['Returns'].fillna(0))
+        .cumprod()
+        .iloc[-1]
     )
 
     strategy_return = (
-        (1 + df['Strategy']).cumprod().iloc[-1]
+        (1 + df['Strategy'].fillna(0))
+        .cumprod()
+        .iloc[-1]
     )
 
     return {
-        "market_return": round(float(market_return), 2),
-        "strategy_return": round(float(strategy_return), 2)
+        "market_return_%": round((market_return - 1) * 100, 2),
+        "strategy_return_%": round((strategy_return - 1) * 100, 2)
     }
