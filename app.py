@@ -6,11 +6,6 @@ from core.data_loader import load_data
 from core.indicators import add_indicators
 from ai.consensus import consensus_signal
 from core.backtester import run_backtest
-import inspect
-
-st.subheader("BACKTESTER SOURCE")
-st.code(inspect.getsource(run_backtest))
-st.stop()
 from whale.whale_tracker import detect_whale_activity
 from sentiment.fear_greed import get_fear_greed
 from core.journal import log_trade
@@ -49,7 +44,6 @@ try:
 
     df = load_data(asset)
 
-    # Remove timezone
     df["Date"] = pd.to_datetime(
         df["Date"],
         utc=True
@@ -63,7 +57,7 @@ except Exception as e:
 
 if df.empty:
 
-    st.error("No data loaded")
+    st.error("No market data loaded.")
     st.stop()
 
 
@@ -221,17 +215,14 @@ with col2:
 st.subheader("📊 Strategy Backtest")
 
 try:
-    st.write("Columns:")
-    st.write(df.columns.tolist())
 
     result = run_backtest(df)
 
-    st.success("Backtest OK")
     st.json(result)
 
 except Exception as e:
-    st.error(type(e).__name__)
-    st.error(str(e))
+
+    st.error(f"Backtest Error: {e}")
 
 
 # ===================================
