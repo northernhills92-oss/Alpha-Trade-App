@@ -11,9 +11,10 @@ from sentiment.fear_greed import get_fear_greed
 from core.journal import log_trade
 
 
-# -----------------------------
+# ===================================
 # PAGE CONFIG
-# -----------------------------
+# ===================================
+
 st.set_page_config(
     page_title="Alpha Trade AI Ultra",
     layout="wide"
@@ -22,9 +23,10 @@ st.set_page_config(
 st.title("🚀 Alpha Trade AI Ultra")
 
 
-# -----------------------------
+# ===================================
 # ASSET SELECT
-# -----------------------------
+# ===================================
+
 asset = st.selectbox(
     "Asset",
     [
@@ -34,42 +36,65 @@ asset = st.selectbox(
 )
 
 
-# -----------------------------
+# ===================================
 # LOAD DATA
-# -----------------------------
-df = load_data(asset)
+# ===================================
 
-# Force remove timezone
-df["Date"] = pd.to_datetime(
-    df["Date"],
-    utc=True
-).dt.tz_convert(None)
+try:
 
-# Safety check
-if df.empty:
-    st.error("No market data loaded.")
+    df = load_data(asset)
+
+    # Remove timezone
+    df["Date"] = pd.to_datetime(
+        df["Date"],
+        utc=True
+    ).dt.tz_convert(None)
+
+except Exception as e:
+
+    st.error(f"Data Error: {e}")
     st.stop()
 
 
-# -----------------------------
+if df.empty:
+
+    st.error("No data loaded")
+    st.stop()
+
+
+# ===================================
 # INDICATORS
-# -----------------------------
-df = add_indicators(df)
+# ===================================
 
-
-# -----------------------------
-# AI SIGNAL
-# -----------------------------
 try:
-    signal = consensus_signal(df)
+
+    df = add_indicators(df)
+
 except Exception as e:
-    st.warning(f"AI Signal Error: {e}")
+
+    st.error(f"Indicator Error: {e}")
+    st.stop()
+
+
+# ===================================
+# AI SIGNAL
+# ===================================
+
+try:
+
+    signal = consensus_signal(df)
+
+except Exception as e:
+
+    st.warning(f"Signal Error: {e}")
+
     signal = "HOLD"
 
 
-# -----------------------------
-# MARKET DATA
-# -----------------------------
+# ===================================
+# MARKET INFO
+# ===================================
+
 try:
     fear_greed = get_fear_greed()
 except:
@@ -84,24 +109,32 @@ except:
 current_price = float(df["Close"].iloc[-1])
 
 
-# -----------------------------
-# TRADE JOURNAL
-# -----------------------------
+# ===================================
+# JOURNAL
+# ===================================
+
 try:
+
     log_trade(
         asset,
         signal,
         current_price
     )
+
 except:
     pass
 
 
-# -----------------------------
+# ===================================
 # DASHBOARD
-# -----------------------------
+# ===================================
+
 col1, col2 = st.columns([3, 1])
 
+
+# ===================================
+# CHART
+# ===================================
 
 with col1:
 
@@ -119,6 +152,7 @@ with col1:
     )
 
     if "EMA20" in df.columns:
+
         fig.add_trace(
             go.Scatter(
                 x=df["Date"],
@@ -128,6 +162,7 @@ with col1:
         )
 
     if "EMA50" in df.columns:
+
         fig.add_trace(
             go.Scatter(
                 x=df["Date"],
@@ -146,6 +181,10 @@ with col1:
         use_container_width=True
     )
 
+
+# ===================================
+# METRICS
+# ===================================
 
 with col2:
 
@@ -170,20 +209,30 @@ with col2:
     )
 
 
-# -----------------------------
+# ===================================
 # BACKTEST
-# -----------------------------
+# ===================================
+
 st.subheader("📊 Strategy Backtest")
 
 try:
-    backtest = run_backtest(df)
-    st.json(backtest)
+
+    result = run_backtest(df)
+
+    st.json(result)
+
 except Exception as e:
-    st.warning(f"Backtest Error: {e}")
+
+    st.error(f"Backtest Error: {e}")
 
 
-# -----------------------------
-# DATA TABLE
-# -----------------------------
+# ===================================
+# RAW DATA
+# ===================================
+
 with st.expander("View Raw Data"):
-    st.dataframe(df.tail(50))
+
+    st.dataframe(
+        df.tail(100),
+        use_container_width=True
+    )
