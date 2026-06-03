@@ -1,6 +1,6 @@
 import numpy as np
 
-
+print("BACKTESTER V2 LOADED")
 def run_backtest(df):
 
     df = df.copy()
