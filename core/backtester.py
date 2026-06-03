@@ -1,42 +1,18 @@
-import numpy as np
+st.subheader("📊 Strategy Backtest")
 
-print("BACKTESTER V2 LOADED")
-def run_backtest(df):
+try:
 
-    df = df.copy()
+    st.write("Before Backtest")
+    st.write(df.columns.tolist())
 
-    if 'EMA20' not in df.columns:
-        return {"error": "EMA20 missing"}
+    result = run_backtest(df)
 
-    if 'EMA50' not in df.columns:
-        return {"error": "EMA50 missing"}
+    st.write("After Backtest")
+    st.write(result)
 
-    df['Returns'] = df['Close'].pct_change()
+except Exception as e:
 
-    df['Signal'] = np.where(
-        df['EMA20'] > df['EMA50'],
-        1,
-        0
-    )
+    import traceback
 
-    df['Strategy'] = (
-        df['Signal'].shift(1).fillna(0)
-        * df['Returns']
-    )
-
-    market_return = (
-        (1 + df['Returns'].fillna(0))
-        .cumprod()
-        .iloc[-1]
-    )
-
-    strategy_return = (
-        (1 + df['Strategy'].fillna(0))
-        .cumprod()
-        .iloc[-1]
-    )
-
-    return {
-        "market_return_%": round((market_return - 1) * 100, 2),
-        "strategy_return_%": round((strategy_return - 1) * 100, 2)
-    }
+    st.error(str(e))
+    st.code(traceback.format_exc())
