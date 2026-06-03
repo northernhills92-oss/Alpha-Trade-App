@@ -82,7 +82,7 @@ except Exception as e:
 try:
 
     signal = consensus_signal(df)
-    signal=”HOLD”
+    signal = "HOLD"
 
 except Exception as e:
 
