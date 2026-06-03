@@ -216,14 +216,17 @@ with col2:
 st.subheader("📊 Strategy Backtest")
 
 try:
+    st.write("Columns:")
+    st.write(df.columns.tolist())
 
     result = run_backtest(df)
 
+    st.success("Backtest OK")
     st.json(result)
 
 except Exception as e:
-
-    st.error(f"Backtest Error: {e}")
+    st.error(type(e).__name__)
+    st.error(str(e))
 
 
 # ===================================
