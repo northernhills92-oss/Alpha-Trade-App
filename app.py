@@ -177,10 +177,9 @@ with col1:
     )
 
     st.plotly_chart(
-        fig,
-        use_container_width=True
+    fig,
+    width="stretch"
     )
-
 
 # ===================================
 # METRICS
@@ -232,7 +231,7 @@ except Exception as e:
 
 with st.expander("View Raw Data"):
 
-    st.dataframe(
-        df.tail(100),
-        use_container_width=True
+    sst.dataframe(
+    df.tail(100),
+    width="stretch"
     )
