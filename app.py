@@ -6,6 +6,11 @@ from core.data_loader import load_data
 from core.indicators import add_indicators
 from ai.consensus import consensus_signal
 from core.backtester import run_backtest
+import inspect
+
+st.subheader("BACKTESTER SOURCE")
+st.code(inspect.getsource(run_backtest))
+st.stop()
 from whale.whale_tracker import detect_whale_activity
 from sentiment.fear_greed import get_fear_greed
 from core.journal import log_trade
