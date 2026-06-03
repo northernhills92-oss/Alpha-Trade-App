@@ -177,7 +177,7 @@ st.subheader("📊 Strategy Backtest")
 
 try:
     backtest = run_backtest(df)
-    st.write(backtest)
+    st.json(backtest)
 except Exception as e:
     st.warning(f"Backtest Error: {e}")
 
